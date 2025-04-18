@@ -1,0 +1,120 @@
+**Repository Structure**
+
+```text
+discord-mafia-bot/
+├── .env.example
+├── .gitignore
+├── README.md
+├── package.json
+├── index.js
+├── deploy-commands.js
+└── commands/
+    ├── play.js
+    ├── mafia.js
+    ├── lista.js
+    ├── listapuntos.js
+    ├── resetlista.js
+    ├── sanctions.js
+    └── appeal.js
+```  
+
+---
+
+### 1. `.env.example`
+```ini
+DISCORD_TOKEN=TU_TOKEN_DE_DISCORD
+CLIENT_ID=TU_CLIENT_ID
+GUILD_ID=TU_GUILD_ID
+```  
+
+### 2. `.gitignore`
+```gitignore
+node_modules/
+.env
+```  
+
+### 3. `package.json`
+```json
+{
+  "name": "discord-mafia-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "deploy": "node deploy-commands.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.18.0",
+    "@discordjs/voice": "^0.15.0",
+    "ytdl-core": "^4.11.5",
+    "dotenv": "^16.3.1"
+  }
+}
+```  
+
+### 4. `README.md`
+```markdown
+# Discord Mafia Bot
+
+Bot para gestionar puntos de actividad en canales de Discord, reproducción de música y sanciones.
+
+## Comandos
+- `/mafia <ID> <descripcion>`: Registra un cambio en mafia y suma +1 punto.
+- `/lista`: Muestra todos los cambios registrados (solo STAFF).
+- `/listapuntos`: Muestra puntos acumulados por usuario (solo STAFF).
+- `/resetlista`: Limpia lista y puntos (solo STAFF).
+- `/reg`: Muestra logs de `/mafia` con fecha (solo STAFF).
+- `/clearreg`: Limpia logs de `/reg` (solo STAFF).
+- `/play <url>`: Reproduce audio de YouTube.
+- `/adv @user <motivo>`: Agrega advertencia.
+- `/strike @user <motivo>`: Aplica strike.
+- `/appeal @user <adv|strike> <cantidad>`: Elimina sanción.
+- `/sanciones`: Muestra sancionados (solo STAFF).
+- `/clearsanciones`: Limpia sanciones (solo STAFF).
+
+## Instalación
+```bash
+npm install
+cp .env.example .env  # luego rellena .env
+npm run deploy          # registra comandos slash
+npm start               # inicia el bot
+```
+```  
+
+### 5. `index.js`
+```javascript
+const { Client, GatewayIntentBits, Collection } = require('discord.js');
+require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const token = process.env.DISCORD_TOKEN;
+
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ]
+});
+
+client.commands = new Collection();
+const commandsPath = path.join(__dirname, 'commands');
+for (const file of fs.readdirSync(commandsPath)) {
+  if (file.endsWith('.js')) {
+    const cmd = require(`./commands/${file}`);
+    client.commands.set(cmd.data.name, cmd);
+  }
+}
+
+client.once('ready', () => console.log(`Bot listo: ${client.user.tag}`));
+client.on('interactionCreate', async i => {
+  if (!i.isChatInputCommand()) return;
+  const cmd = client.commands.get(i.commandName);
+  if (!cmd) return;
+  try { await cmd.execute(i); } catch (e) { console.error(e); i.reply({ content: 'Error', ephemeral: true }); }
+});
+client.login(token);
+```
+
